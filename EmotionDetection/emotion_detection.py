@@ -1,37 +1,35 @@
-''' Import the nescessary libraries for the emotion detector app '''
-import requests , json
+# Import the necessary libraries for the emotion detector app
+import requests
 
 def emotion_detector(text_to_analyse):
-    ''' this function is to detect the emotinon in a given text '''    
-    # URL of the emotion detection service
+    '''Detect the emotion in a given English text using a remote NLP API'''
     url = 'https://sn-watson-emotion.labs.skills.network/v1/watson.runtime.nlp.v1/NlpService/EmotionPredict'
-    # Constructing the request payload in the expected format
     myobj = { "raw_document": { "text": text_to_analyse } }
-    # Custom header specifying the model ID for the emotion detector service
     header = {"grpc-metadata-mm-model-id": "emotion_aggregated-workflow_lang_en_stock"}
-    # Sending a POST request to the sentiment analysis API
-    response = requests.post(url, json=myobj, headers=header)
-    # Parsing the JSON response from the API 
-    data = response.json() 
-    # get the list 
-    preds = data.get('emotionPredictions') 
-    # first item from the list 
-    emotions = preds[0].get('emotion', {}) 
-    # following are the 'emotion' items
-    anger = emotions.get('anger')
-    disgust = emotions.get('disgust') 
-    fear = emotions.get('fear') 
-    joy = emotions.get('joy') 
-    sadness = emotions.get('sadness') 
-    # determine dominant emotion
-    best_label = None
-    best_score = -1.0
-    # fixed order along the known keys
-    for key in ['joy', 'anger', 'disgust', 'fear', 'sadness']:
-        value = emotions.get(key)
-        if isinstance(value, (int, float)) and value > best_score:
-            best_label = key
-            best_score = value
-    # return dominant emotion and the other emotions
-    return {'dominant': {'label': best_label, 'score': best_score}, 'emotions': emotions}
-
+    # Send POST request
+    response = requests.post(url, json=myobj, headers=header, timeout=10)
+    # Handle blank input via status_code == 400
+    if response.status_code == 400:
+        return {
+            'anger': None,
+            'disgust': None,
+            'fear': None,
+            'joy': None,
+            'sadness': None,
+            'dominant_emotion': None
+        }
+    # Normal path (200)
+    data = response.json()
+    preds = data['emotionPredictions']
+    emotions = preds[0]['emotion']
+    # Determine dominant emotion (name only)
+    dominant_emotion = max(emotions, key=emotions.get)
+    # Return flat dictionary format
+    return {
+        'anger': emotions['anger'], 
+        'disgust': emotions['disgust'], 
+        'fear': emotions['fear'],
+        'joy': emotions['joy'],
+        'sadness': emotions['sadness'],
+        'dominant_emotion': dominant_emotion
+    }
